@@ -395,7 +395,6 @@
     const FONNTE_TOKEN = "PXhX87sqV1TLqEKqNy66"; 
     const FONNTE_GROUP_ID = "120363407943893615@g.us";
 
-    // Data lokal sementara sebelum tersinkronisasi
     let dbSiswa = [];
     let dbAbsensi = [];
     let dbProfil = {
@@ -413,20 +412,16 @@
     let html5QrcodeScanner = null;
     let toastTimeout = null;
 
-    // ===== 3. LISTEN REALTIME DATABASE (SINKRONISASI OTOMATIS CLOUD) =====
+    // ===== 3. LISTEN REALTIME DATABASE =====
     document.addEventListener('DOMContentLoaded', () => {
-      // Listen Data Siswa
-     db.ref('siswa').on('value', (snapshot) => {
-  const val = snapshot.val();
-  if (val) {
-    dbSiswa = Array.isArray(val) ? val : Object.values(val);
-  } else {
-    dbSiswa = []; // <-- UBAH JADI SEPERTI INI (HAPUS DATA DUMMY)
-  }
-  renderTableSiswa();
-  updateFilterKelas();
-  populateSelectSiswaManual();
-});
+      // Listen Data Siswa (TIDAK ADA DATA DUMMY OTOMATIS)
+      db.ref('siswa').on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+          dbSiswa = Array.isArray(val) ? val : Object.values(val);
+        } else {
+          dbSiswa = [];
+        }
         renderTableSiswa();
         updateFilterKelas();
         populateSelectSiswaManual();
@@ -454,7 +449,23 @@
       });
     });
 
-    // ===== 4. FUNGSI UTAMA LAINNYA =====
+    // ===== 4. FUNGSI UTAMA APLIKASI =====
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+      
+      if (window.innerWidth < 768) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (!sidebar.classList.contains('-translate-x-full')) {
+          sidebar.classList.add('-translate-x-full');
+          overlay.classList.add('hidden');
+        }
+      }
+
+      if(tabName !== 'scan') stopScanner();
+    }
+
     function getFilteredSiswaData() {
       const searchElem = document.getElementById('searchSiswa');
       const searchKeyword = searchElem ? searchElem.value.toLowerCase() : '';
@@ -529,7 +540,7 @@
         osc.start();
         osc.stop(ctx.currentTime + 0.2);
       } catch (e) {
-        console.log("Audio API blocked/unsupported:", e);
+        console.log("Audio blocked:", e);
       }
     }
 
@@ -746,22 +757,6 @@
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Template Siswa");
       XLSX.writeFile(workbook, "Template_Data_Siswa.xlsx");
-    }
-
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-      
-      if (window.innerWidth < 768) {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebarOverlay');
-        if (!sidebar.classList.contains('-translate-x-full')) {
-          sidebar.classList.add('-translate-x-full');
-          overlay.classList.add('hidden');
-        }
-      }
-
-      if(tabName !== 'scan') stopScanner();
     }
 
     function loadProfil() {
