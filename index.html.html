@@ -416,18 +416,17 @@
     // ===== 3. LISTEN REALTIME DATABASE (SINKRONISASI OTOMATIS CLOUD) =====
     document.addEventListener('DOMContentLoaded', () => {
       // Listen Data Siswa
-      db.ref('siswa').on('value', (snapshot) => {
-        const val = snapshot.val();
-        if (val) {
-          dbSiswa = Array.isArray(val) ? val : Object.values(val);
-        } else {
-          dbSiswa = [
-            { nis: '1001', nama: 'Ahmad Fauzi', kelas: 'X IPA 1', jk: 'L' },
-            { nis: '1002', nama: 'Siti Nurhaliza', kelas: 'X IPA 1', jk: 'P' },
-            { nis: '1003', nama: 'Budi Raharjo', kelas: 'X IPS 2', jk: 'L' }
-          ];
-          db.ref('siswa').set(dbSiswa);
-        }
+     db.ref('siswa').on('value', (snapshot) => {
+  const val = snapshot.val();
+  if (val) {
+    dbSiswa = Array.isArray(val) ? val : Object.values(val);
+  } else {
+    dbSiswa = []; // <-- UBAH JADI SEPERTI INI (HAPUS DATA DUMMY)
+  }
+  renderTableSiswa();
+  updateFilterKelas();
+  populateSelectSiswaManual();
+});
         renderTableSiswa();
         updateFilterKelas();
         populateSelectSiswaManual();
