@@ -809,8 +809,8 @@
     function kirimNotifWaFonnte(namaSiswa, kelas, status, waktu) {
       if (!FONNTE_TOKEN) return;
 
-      // FILTER KHUSUS: HANYA KIRIM NOTIFIKASI JIKA SISWA BERASAL DARI KELAS 3
-      if (kelas !== "Kelas 3" && kelas !== "3") {
+      // FILTER KHUSUS: HANYA KIRIM NOTIFIKASI JIKA SISWA BERASAL DARI KELAS 6
+      if (kelas !== "Kelas 6" && kelas !== "6") {
         console.log(`Notifikasi WA dilewati untuk ${namaSiswa} (Kelas: ${kelas})`);
         return;
       }
