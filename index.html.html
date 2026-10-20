@@ -488,8 +488,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ===== 2. KONFIGURASI FONNTE WA =====
-    const FONNTE_TOKEN = "PXhX87sqV1TLqEKqNy66"; 
+    // ===== 2. KONFIGURASI FONNTE WA (TERHUBUNG KE SERVERLESS API) =====
     const FONNTE_GROUP_ID = "120363407943893615@g.us";
 
     let dbSiswa = [];
@@ -806,9 +805,8 @@
       overlay.classList.toggle('hidden');
     }
 
+    // PENGIRIMAN WA DIALIHKAN KE VERCEL SERVERLESS FUNCTION
     function kirimNotifWaFonnte(namaSiswa, kelas, status, waktu) {
-      if (!FONNTE_TOKEN) return;
-
       // FILTER KHUSUS: HANYA KIRIM NOTIFIKASI JIKA SISWA BERASAL DARI KELAS 6
       if (kelas !== "Kelas 6" && kelas !== "6") {
         console.log(`Notifikasi WA dilewati untuk ${namaSiswa} (Kelas: ${kelas})`);
@@ -823,10 +821,9 @@
                     `• Waktu: ${waktu}\n\n` +
                     `_Pesan otomatis dari Sistem Absensi_`;
 
-      fetch('https://api.fonnte.com/send', {
+      fetch('/api/send-wa', {
         method: 'POST',
         headers: {
-          'Authorization': FONNTE_TOKEN,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -840,7 +837,7 @@
           showToast("WA Terkirim", `Notifikasi ${namaSiswa} masuk ke Grup WA`);
         }
       })
-      .catch(err => console.error("Gagal koneksi Fonnte:", err));
+      .catch(err => console.error("Gagal koneksi Fonnte API Internal:", err));
     }
 
     function showToast(title, message, isError = false) {
@@ -1020,8 +1017,8 @@
 
     function downloadTemplateExcel() {
       const templateData = [
-        { NIS: '1001', NAMA: 'Contoh Nama Siswa 1', KELAS: 'Kelas 3', JK: 'L' },
-        { NIS: '1002', NAMA: 'Contoh Nama Siswa 2', KELAS: 'Kelas 3', JK: 'P' }
+        { NIS: '1001', NAMA: 'Contoh Nama Siswa 1', KELAS: 'Kelas 6', JK: 'L' },
+        { NIS: '1002', NAMA: 'Contoh Nama Siswa 2', KELAS: 'Kelas 6', JK: 'P' }
       ];
       const worksheet = XLSX.utils.json_to_sheet(templateData);
       const workbook = XLSX.utils.book_new();
