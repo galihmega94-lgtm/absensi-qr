@@ -511,7 +511,7 @@
     let html5QrcodeScanner = null;
     let toastTimeout = null;
 
-    // Helper format tanggal YYYY-MM-DD lokal
+    // Helper Format Tanggal YYYY-MM-DD Presisi
     function getTodayFormatted() {
       const d = new Date();
       const year = d.getFullYear();
@@ -656,7 +656,7 @@
       renderTableLaporan();
     }
 
-    // ===== 5. PENGECEKAN 6 HARI KERJA & KALENDER LIBUR =====
+    // ===== 5. PENGECEKAN HARI EFEKTIF & KALENDER LIBUR =====
     function cekHariEfektif() {
       const today = new Date();
       const dayOfWeek = today.getDay(); // 0 = Minggu
@@ -827,52 +827,48 @@
       overlay.classList.toggle('hidden');
     }
 
-    // PENGIRIMAN WA VIA SERVERLESS API
-   // PENGIRIMAN WA VIA SERVERLESS API
-function kirimNotifWaFonnte(namaSiswa, kelas, status, waktu) {
-  // Bikin pengecekan kelas lebih fleksibel (mencakup 6, Kelas 6, 6A, VI, dll)
-  const classCheck = String(kelas).trim().toLowerCase();
-  const isKelas6 = classCheck.includes("6") || classCheck.includes("vi");
+    // ===== 7. PENGIRIMAN WA VIA VERCEL SERVERLESS API =====
+    function kirimNotifWaFonnte(namaSiswa, kelas, status, waktu) {
+      // Pengecekan fleksibel untuk semua variasi tulisan Kelas 6 (6, Kelas 6, 6A, VI, dll)
+      const classCheck = String(kelas).trim().toLowerCase();
+      const isKelas6 = classCheck.includes("6") || classCheck.includes("vi");
 
-  if (!isKelas6) {
-    console.log(`Notifikasi WA dilewati untuk ${namaSiswa} (Kelas: ${kelas})`);
-    return;
-  }
+      if (!isKelas6) {
+        console.log(`Notifikasi WA dilewati untuk ${namaSiswa} (Kelas: ${kelas})`);
+        return;
+      }
 
-  const pesan = `*E-ABSENSI SEKOLAH*\n\n` +
-                `Pemberitahuan Absensi Siswa:\n` +
-                `• Nama: *${namaSiswa}*\n` +
-                `• Kelas: ${kelas}\n` +
-                `• Status: *${status}*\n` +
-                `• Waktu: ${waktu}\n\n` +
-                `_Pesan otomatis dari Sistem Absensi_`;
+      const pesan = `*E-ABSENSI SEKOLAH*\n\n` +
+                    `Pemberitahuan Absensi Siswa:\n` +
+                    `• Nama: *${namaSiswa}*\n` +
+                    `• Kelas: ${kelas}\n` +
+                    `• Status: *${status}*\n` +
+                    `• Waktu: ${waktu}\n\n` +
+                    `_Pesan otomatis dari Sistem Absensi_`;
 
-  fetch('/api/send-wa', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      target: FONNTE_GROUP_ID,
-      message: pesan
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.status) {
-      showToast("WA Terkirim", `Notifikasi ${namaSiswa} masuk ke Grup WA`);
-    } else {
-      console.error("Fonnte Response Error:", data);
-      showToast("Gagal WA", data.reason || "Cek Fonnte Token / Target ID", true);
-    }
-  })
-  .catch(err => {
-    console.error("Gagal koneksi Fonnte API Internal:", err);
-    showToast("Gagal WA", "Serverless Function Vercel Error", true);
-  });
-}
+      fetch('/api/send-wa', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          target: FONNTE_GROUP_ID,
+          message: pesan
+        })
       })
-      .catch(err => console.error("Gagal koneksi Fonnte API Internal:", err));
+      .then(res => res.json())
+      .then(data => {
+        if (data.status) {
+          showToast("WA Terkirim", `Notifikasi ${namaSiswa} masuk ke Grup WA`);
+        } else {
+          console.error("Fonnte Response Error:", data);
+          showToast("Gagal WA", data.reason || "Gagal Mengirimkan Notifikasi WA", true);
+        }
+      })
+      .catch(err => {
+        console.error("Gagal koneksi Fonnte API Internal:", err);
+        showToast("Gagal WA", "Fonnte Serverless Function Error", true);
+      });
     }
 
     function showToast(title, message, isError = false) {
@@ -1235,7 +1231,7 @@ function kirimNotifWaFonnte(namaSiswa, kelas, status, waktu) {
         return;
       }
 
-      // 2. Cari Siswa berdasarkan NIS
+      // 2. Cari Siswa Berdasarkan NIS
       const siswa = dbSiswa.find(s => String(s.nis).trim() === String(decodedText).trim());
       if (!siswa) {
         playNotificationSound(true);
@@ -1282,7 +1278,7 @@ function kirimNotifWaFonnte(namaSiswa, kelas, status, waktu) {
         status: status
       };
 
-      // Simpan menggunakan .push()
+      // Simpan Ke Firebase
       db.ref('absensi').push(record);
 
       playNotificationSound(false);
