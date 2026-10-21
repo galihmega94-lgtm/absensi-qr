@@ -828,36 +828,49 @@
     }
 
     // PENGIRIMAN WA VIA SERVERLESS API
-    function kirimNotifWaFonnte(namaSiswa, kelas, status, waktu) {
-      const classCheck = String(kelas).trim().toLowerCase();
-      if (classCheck !== "kelas 6" && classCheck !== "6") {
-        console.log(`Notifikasi WA dilewati untuk ${namaSiswa} (Kelas: ${kelas})`);
-        return;
-      }
+   // PENGIRIMAN WA VIA SERVERLESS API
+function kirimNotifWaFonnte(namaSiswa, kelas, status, waktu) {
+  // Bikin pengecekan kelas lebih fleksibel (mencakup 6, Kelas 6, 6A, VI, dll)
+  const classCheck = String(kelas).trim().toLowerCase();
+  const isKelas6 = classCheck.includes("6") || classCheck.includes("vi");
 
-      const pesan = `*E-ABSENSI SEKOLAH*\n\n` +
-                    `Pemberitahuan Absensi Siswa:\n` +
-                    `• Nama: *${namaSiswa}*\n` +
-                    `• Kelas: ${kelas}\n` +
-                    `• Status: *${status}*\n` +
-                    `• Waktu: ${waktu}\n\n` +
-                    `_Pesan otomatis dari Sistem Absensi_`;
+  if (!isKelas6) {
+    console.log(`Notifikasi WA dilewati untuk ${namaSiswa} (Kelas: ${kelas})`);
+    return;
+  }
 
-      fetch('/api/send-wa', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          target: FONNTE_GROUP_ID,
-          message: pesan
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status) {
-          showToast("WA Terkirim", `Notifikasi ${namaSiswa} masuk ke Grup WA`);
-        }
+  const pesan = `*E-ABSENSI SEKOLAH*\n\n` +
+                `Pemberitahuan Absensi Siswa:\n` +
+                `• Nama: *${namaSiswa}*\n` +
+                `• Kelas: ${kelas}\n` +
+                `• Status: *${status}*\n` +
+                `• Waktu: ${waktu}\n\n` +
+                `_Pesan otomatis dari Sistem Absensi_`;
+
+  fetch('/api/send-wa', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      target: FONNTE_GROUP_ID,
+      message: pesan
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status) {
+      showToast("WA Terkirim", `Notifikasi ${namaSiswa} masuk ke Grup WA`);
+    } else {
+      console.error("Fonnte Response Error:", data);
+      showToast("Gagal WA", data.reason || "Cek Fonnte Token / Target ID", true);
+    }
+  })
+  .catch(err => {
+    console.error("Gagal koneksi Fonnte API Internal:", err);
+    showToast("Gagal WA", "Serverless Function Vercel Error", true);
+  });
+}
       })
       .catch(err => console.error("Gagal koneksi Fonnte API Internal:", err));
     }
