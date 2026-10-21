@@ -474,46 +474,44 @@
 
   <script>
     async function kirimNotifWaFonnte(nama, kelas, status, waktu) {
-    // 1. Masukkan Token Fonnte kamu langsung di sini
-    const token = "PXhX87sqV1TLqEKqNy66"; 
+      // Token Fonnte Langsung (Direct Call)
+      const token = "PXhX87sqV1TLqEKqNy66"; 
 
-    // 2. Format pesan yang akan dikirim
-    const pesan = `*NOTIFIKASI ABSENSI SDN GAMBIRONO 03*\n\n` +
-                  `Nama: *${nama}*\n` +
-                  `Kelas: *${kelas}*\n` +
-                  `Status: *${status}*\n` +
-                  `Waktu: *${waktu} WIB*\n\n` +
-                  ` Terima kasih.`;
+      const pesan = `*NOTIFIKASI ABSENSI SDN GAMBIRONO 03*\n\n` +
+                    `Nama: *${nama}*\n` +
+                    `Kelas: *${kelas}*\n` +
+                    `Status: *${status}*\n` +
+                    `Waktu: *${waktu} WIB*\n\n` +
+                    `Terima kasih.`;
 
-    // 3. Siapkan data pengiriman
-    const formData = new URLSearchParams();
-    formData.append('target', '120363385750821943@g.us'); // ID Grup WA
-    formData.append('message', pesan);
+      const formData = new URLSearchParams();
+      formData.append('target', FONNTE_GROUP_ID);
+      formData.append('message', pesan);
 
-    try {
-        // 4. Panggil API Fonnte langsung dari browser
-        const response = await fetch('https://api.fonnte.com/send', {
-            method: 'POST',
-            headers: {
-                'Authorization': token
-            },
-            body: formData
-        });
+      try {
+          const response = await fetch('https://api.fonnte.com/send', {
+              method: 'POST',
+              headers: {
+                  'Authorization': token
+              },
+              body: formData
+          });
 
-        const result = await response.json();
-        
-        if (result.status) {
-            console.log("WA Berhasil Terkirim:", result);
-            alert("Notifikasi WA Berhasil Terkirim!");
-        } else {
-            console.error("Gagal Kirim WA Fonnte:", result);
-            alert("Gagal Kirim WA: " + (result.reason || "Terjadi kesalahan"));
-        }
-    } catch (error) {
-        console.error("Error Network/API:", error);
-        alert("Gagal terhubung ke server Fonnte.");
+          const result = await response.json();
+          
+          if (result.status) {
+              console.log("WA Berhasil Terkirim:", result);
+              showToast("Notifikasi Terkirim", "Pesan WA berhasil dikirim ke grup.");
+          } else {
+              console.error("Gagal Kirim WA Fonnte:", result);
+              showToast("Gagal Kirim WA", result.reason || "Terjadi kesalahan", false);
+          }
+      } catch (error) {
+          console.error("Error Network/API:", error);
+          showToast("Error Koneksi", "Gagal terhubung ke server Fonnte.", false);
+      }
     }
-}
+
     // ===== 1. INISIALISASI FIREBASE REALTIME DATABASE =====
     const firebaseConfig = {
       apiKey: "AIzaSyCpiW2-aIm4eXDwUF2sJvFT2tyNRf_DPKg",
@@ -552,7 +550,6 @@
     let html5QrcodeScanner = null;
     let toastTimeout = null;
 
-    // Helper Format Tanggal YYYY-MM-DD Presisi
     function getTodayFormatted() {
       const d = new Date();
       const year = d.getFullYear();
@@ -563,7 +560,6 @@
 
     // ===== 3. LISTEN REALTIME DATABASE =====
     document.addEventListener('DOMContentLoaded', () => {
-      // Listen Data Siswa
       db.ref('siswa').on('value', (snapshot) => {
         const val = snapshot.val();
         dbSiswa = [];
@@ -577,7 +573,6 @@
         populateSelectSiswaManual();
       });
 
-      // Listen Data Absensi
       db.ref('absensi').on('value', (snapshot) => {
         const val = snapshot.val();
         dbAbsensi = [];
@@ -589,7 +584,6 @@
         renderTableLaporan();
       });
 
-      // Listen Data Tanggal Libur
       db.ref('libur').on('value', (snapshot) => {
         const val = snapshot.val();
         dbLibur = [];
@@ -601,21 +595,18 @@
         renderTableLibur();
       });
 
-      // Listen Data Profil
       db.ref('profil').on('value', (snapshot) => {
         const val = snapshot.val();
         if (val) dbProfil = val;
         loadProfil();
       });
 
-      // Listen Data Jadwal
       db.ref('jadwal').on('value', (snapshot) => {
         const val = snapshot.val();
         if (val) dbJadwal = val;
         loadJadwal();
       });
 
-      // Listen Password Admin
       db.ref('admin_pass').on('value', (snapshot) => {
         const val = snapshot.val();
         if (val) adminPass = val;
@@ -749,34 +740,29 @@
       const now = new Date();
       const jamSekarang = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
 
-      // Cek Libur
       const isLibur = dbLibur.some(l => l.tanggal === today) || now.getDay() === 0;
       if (isLibur) {
         showToast("Hari Libur", "Hari ini libur, presensi ditutup.", false);
         return;
       }
 
-      // Cari Siswa
       const siswa = dbSiswa.find(s => s.nis === decodedText || s._key === decodedText);
       if (!siswa) {
         showToast("Tidak Ditemukan", "QR Code siswa tidak terdaftar!", false);
         return;
       }
 
-      // Hitung Status Masuk/Terlambat
       let status = "Hadir";
       if (jamSekarang > dbJadwal.batas) {
         status = "Terlambat";
       }
 
-      // Cek Sudah Absen Hari Ini
       const rekapHariIni = dbAbsensi.find(a => a.nis === siswa.nis && a.tanggal === today);
       if (rekapHariIni) {
         showToast("Sudah Absen", `${siswa.nama} sudah presensi hari ini!`, false);
         return;
       }
 
-      // Simpan Ke Firebase
       const payload = {
         nis: siswa.nis,
         nama: siswa.nama,
@@ -793,7 +779,6 @@
           <p class="text-xs text-slate-600">Kelas: ${siswa.kelas} | Status: <span class="font-bold">${status}</span> (${jamSekarang} WIB)</p>
         `;
 
-        // Kirim Notif WhatsApp Fonnte Direct
         kirimNotifWaFonnte(siswa.nama, siswa.kelas, status, jamSekarang);
       });
     }
