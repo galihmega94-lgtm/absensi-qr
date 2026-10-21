@@ -11,13 +11,18 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Format payload ke URLSearchParams (x-www-form-urlencoded) agar sesuai spesifikasi Fonnte API
+    const formData = new URLSearchParams();
+    formData.append('target', target);
+    formData.append('message', message);
+
     const response = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
-        'Authorization': token,
-        'Content-Type': 'application/json'
+        'Authorization': token.trim(),
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify({ target, message })
+      body: formData.toString()
     });
 
     const data = await response.json();
