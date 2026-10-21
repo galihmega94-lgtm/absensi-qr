@@ -474,7 +474,6 @@
 
   <script>
     async function kirimNotifWaFonnte(nama, kelas, status, waktu) {
-      // Token Fonnte Langsung (Direct Call)
       const token = "PXhX87sqV1TLqEKqNy66"; 
 
       const pesan = `*NOTIFIKASI ABSENSI SDN GAMBIRONO 03*\n\n` +
@@ -581,84 +580,17 @@
             dbAbsensi.push({ _key: key, ...val[key] });
           });
         }
-        function renderTableLaporan() {
-  const thead = document.getElementById('tableLaporanHead');
-  const tbody = document.getElementById('tableLaporanBody');
-  const mode = document.getElementById('modeTampilan').value;
-  const kelasFilter = document.getElementById('filterKelas').value;
+        renderTableLaporan();
+      });
 
-  let filtered = dbAbsensi.filter(a => kelasFilter === 'semua' || a.kelas === kelasFilter);
-
-  if (mode === 'log') {
-    thead.innerHTML = `
-      <tr>
-        <th class="p-3 border-b">Tanggal</th>
-        <th class="p-3 border-b">Waktu</th>
-        <th class="p-3 border-b">NIS</th>
-        <th class="p-3 border-b">Nama Siswa</th>
-        <th class="p-3 border-b">Kelas</th>
-        <th class="p-3 border-b">Status</th>
-        <th class="p-3 border-b text-center admin-only ${isAdmin ? '' : 'hidden'}">Aksi</th>
-      </tr>
-    `;
-    tbody.innerHTML = '';
-    filtered.forEach(a => {
-      tbody.innerHTML += `
-        <tr class="border-b hover:bg-slate-50">
-          <td class="p-3">${a.tanggal}</td>
-          <td class="p-3">${a.waktu}</td>
-          <td class="p-3 font-semibold">${a.nis}</td>
-          <td class="p-3">${a.nama}</td>
-          <td class="p-3">${a.kelas}</td>
-          <td class="p-3 font-bold ${a.status === 'Hadir' ? 'text-emerald-600' : a.status === 'Terlambat' ? 'text-amber-600' : 'text-blue-600'}">${a.status}</td>
-          <td class="p-3 text-center admin-only ${isAdmin ? '' : 'hidden'}">
-            <button onclick="openModalEditAbsen('${a._key}', '${a.nama}', '${a.tanggal} ${a.waktu}', '${a.status}')" class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded text-xs font-semibold hover:bg-amber-200">
-              <i class="fa-solid fa-pen-to-square me-1"></i> Edit
-            </button>
-            <button onclick="deleteAbsen('${a._key}')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-semibold hover:bg-red-200 ms-1">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-  }
-}
-
-// Tambahkan juga fungsi pembuka modal & simpan edit ini di bawahnya:
-function openModalEditAbsen(key, nama, waktu, status) {
-  document.getElementById('editAbsenKey').value = key;
-  document.getElementById('editAbsenNama').value = nama;
-  document.getElementById('editAbsenWaktu').value = waktu;
-  document.getElementById('editAbsenStatus').value = status;
-
-  document.getElementById('modalEditAbsen').classList.remove('hidden');
-  document.getElementById('modalEditAbsen').classList.add('flex');
-}
-
-function closeModalEditAbsen() {
-  document.getElementById('modalEditAbsen').classList.add('hidden');
-  document.getElementById('modalEditAbsen').classList.remove('flex');
-}
-
-function saveEditAbsen(e) {
-  e.preventDefault();
-  const key = document.getElementById('editAbsenKey').value;
-  const newStatus = document.getElementById('editAbsenStatus').value;
-
-  db.ref(`absensi/${key}/status`).set(newStatus).then(() => {
-    showToast("Berhasil", "Status absensi berhasil diperbarui!");
-    closeModalEditAbsen();
-  });
-}
-
-function deleteAbsen(key) {
-  if (confirm("Yakin ingin menghapus data log absensi ini?")) {
-    db.ref(`absensi/${key}`).remove().then(() => {
-      showToast("Terhapus", "Log absensi berhasil dihapus.");
-    });
-  }
-}
+      db.ref('libur').on('value', (snapshot) => {
+        const val = snapshot.val();
+        dbLibur = [];
+        if (val) {
+          Object.keys(val).forEach(key => {
+            dbLibur.push({ _key: key, ...val[key] });
+          });
+        }
         renderTableLibur();
       });
 
@@ -996,7 +928,7 @@ function deleteAbsen(key) {
       const mode = document.getElementById('modeTampilan').value;
       const kelasFilter = document.getElementById('filterKelas').value;
 
-      let filtered = dbAbsensi.filter(a => kelasFilter === 'semua' || a.kelas === kelasFilter);
+      let filteredAbsen = dbAbsensi.filter(a => kelasFilter === 'semua' || a.kelas === kelasFilter);
 
       if (mode === 'log') {
         thead.innerHTML = `
@@ -1007,10 +939,17 @@ function deleteAbsen(key) {
             <th class="p-3 border-b">Nama Siswa</th>
             <th class="p-3 border-b">Kelas</th>
             <th class="p-3 border-b">Status</th>
+            <th class="p-3 border-b text-center admin-only ${isAdmin ? '' : 'hidden'}">Aksi</th>
           </tr>
         `;
         tbody.innerHTML = '';
-        filtered.forEach(a => {
+
+        if (filteredAbsen.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Belum ada data presensi.</td></tr>`;
+          return;
+        }
+
+        filteredAbsen.forEach(a => {
           tbody.innerHTML += `
             <tr class="border-b hover:bg-slate-50">
               <td class="p-3">${a.tanggal}</td>
@@ -1019,8 +958,94 @@ function deleteAbsen(key) {
               <td class="p-3">${a.nama}</td>
               <td class="p-3">${a.kelas}</td>
               <td class="p-3 font-bold ${a.status === 'Hadir' ? 'text-emerald-600' : a.status === 'Terlambat' ? 'text-amber-600' : 'text-blue-600'}">${a.status}</td>
+              <td class="p-3 text-center admin-only ${isAdmin ? '' : 'hidden'}">
+                <button onclick="openModalEditAbsen('${a._key}', '${a.nama}', '${a.tanggal} ${a.waktu}', '${a.status}')" class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded text-xs font-semibold hover:bg-amber-200">
+                  <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+                </button>
+                <button onclick="deleteAbsen('${a._key}')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-semibold hover:bg-red-200 ms-1">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
             </tr>
           `;
+        });
+
+      } else if (mode === 'rekap') {
+        thead.innerHTML = `
+          <tr>
+            <th class="p-3 border-b">NIS</th>
+            <th class="p-3 border-b">Nama Siswa</th>
+            <th class="p-3 border-b">Kelas</th>
+            <th class="p-3 border-b text-center text-emerald-600">Hadir (H)</th>
+            <th class="p-3 border-b text-center text-amber-600">Terlambat (T)</th>
+            <th class="p-3 border-b text-center text-blue-600">Izin (I)</th>
+            <th class="p-3 border-b text-center text-purple-600">Sakit (S)</th>
+            <th class="p-3 border-b text-center font-bold">Total</th>
+          </tr>
+        `;
+        tbody.innerHTML = '';
+
+        let targetSiswa = dbSiswa.filter(s => kelasFilter === 'semua' || s.kelas === kelasFilter);
+
+        if (targetSiswa.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">Tidak ada data siswa.</td></tr>`;
+          return;
+        }
+
+        targetSiswa.forEach(s => {
+          const logsSiswa = dbAbsensi.filter(a => a.nis === s.nis);
+          const h = logsSiswa.filter(a => a.status === 'Hadir').length;
+          const t = logsSiswa.filter(a => a.status === 'Terlambat').length;
+          const i = logsSiswa.filter(a => a.status === 'Izin').length;
+          const sak = logsSiswa.filter(a => a.status === 'Sakit').length;
+          const total = h + t + i + sak;
+
+          tbody.innerHTML += `
+            <tr class="border-b hover:bg-slate-50">
+              <td class="p-3 font-semibold">${s.nis}</td>
+              <td class="p-3">${s.nama}</td>
+              <td class="p-3">${s.kelas}</td>
+              <td class="p-3 text-center font-bold text-emerald-600">${h}</td>
+              <td class="p-3 text-center font-bold text-amber-600">${t}</td>
+              <td class="p-3 text-center font-bold text-blue-600">${i}</td>
+              <td class="p-3 text-center font-bold text-purple-600">${sak}</td>
+              <td class="p-3 text-center font-extrabold">${total}</td>
+            </tr>
+          `;
+        });
+      }
+    }
+
+    function openModalEditAbsen(key, nama, waktu, status) {
+      document.getElementById('editAbsenKey').value = key;
+      document.getElementById('editAbsenNama').value = nama;
+      document.getElementById('editAbsenWaktu').value = waktu;
+      document.getElementById('editAbsenStatus').value = status;
+
+      document.getElementById('modalEditAbsen').classList.remove('hidden');
+      document.getElementById('modalEditAbsen').classList.add('flex');
+    }
+
+    function closeModalEditAbsen() {
+      document.getElementById('modalEditAbsen').classList.add('hidden');
+      document.getElementById('modalEditAbsen').classList.remove('flex');
+    }
+
+    function saveEditAbsen(e) {
+      e.preventDefault();
+      const key = document.getElementById('editAbsenKey').value;
+      const newStatus = document.getElementById('editAbsenStatus').value;
+
+      db.ref(`absensi/${key}/status`).set(newStatus).then(() => {
+        showToast("Berhasil", "Status absensi berhasil diperbarui!");
+        closeModalEditAbsen();
+      });
+    }
+
+    function deleteAbsen(key) {
+      if (confirm("Yakin ingin menghapus data log absensi ini?")) {
+        db.ref(`absensi/${key}`).remove().then(() => {
+          showToast("Terhapus", "Log absensi berhasil dihapus.");
         });
       }
     }
