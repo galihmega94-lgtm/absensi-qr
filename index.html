@@ -746,53 +746,54 @@
       }
     }
 
-    function onScanSuccess(decodedText) {
-      const today = getTodayFormatted();
-      const now = new Date();
-      const jamSekarang = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+   function onScanSuccess(decodedText) {
+  const today = getTodayFormatted();
+  const now = new Date();
+  const jamSekarang = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
 
-      const isLibur = dbLibur.some(l => l.tanggal === today) || now.getDay() === 0;
-      if (isLibur) {
-        showToast("Hari Libur", "Hari ini libur, presensi ditutup.", false);
-        return;
-      }
+  const isLibur = dbLibur.some(l => l.tanggal === today) || now.getDay() === 0;
+  if (isLibur) {
+    showToast("Hari Libur", "Hari ini libur, presensi ditutup.", false);
+    return;
+  }
 
-      const siswa = dbSiswa.find(s => s.nis === decodedText || s._key === decodedText);
-      if (!siswa) {
-        showToast("Tidak Ditemukan", "QR Code siswa tidak terdaftar!", false);
-        return;
-      }
+  const siswa = dbSiswa.find(s => String(s.nis) === String(decodedText) || s._key === decodedText);
+  if (!siswa) {
+    showToast("Tidak Ditemukan", "QR Code siswa tidak terdaftar!", false);
+    return;
+  }
 
-      let status = "Hadir";
-      if (jamSekarang > dbJadwal.batas) {
-        status = "Terlambat";
-      }
+  // Pengecekan Absen Ganda (Cek NIS dan Tanggal Hari Ini)
+  const rekapHariIni = dbAbsensi.find(a => String(a.nis) === String(siswa.nis) && a.tanggal === today);
+  if (rekapHariIni) {
+    showToast("Sudah Absen", `${siswa.nama} sudah presensi hari ini! (${rekapHariIni.waktu} WIB)`, false);
+    return;
+  }
 
-      const rekapHariIni = dbAbsensi.find(a => a.nis === siswa.nis && a.tanggal === today);
-      if (rekapHariIni) {
-        showToast("Sudah Absen", `${siswa.nama} sudah presensi hari ini!`, false);
-        return;
-      }
+  let status = "Hadir";
+  if (jamSekarang > dbJadwal.batas) {
+    status = "Terlambat";
+  }
 
-      const payload = {
-        nis: siswa.nis,
-        nama: siswa.nama,
-        kelas: siswa.kelas,
-        tanggal: today,
-        waktu: jamSekarang,
-        status: status
-      };
+  const payload = {
+    nis: siswa.nis,
+    nama: siswa.nama,
+    kelas: siswa.kelas,
+    tanggal: today,
+    waktu: jamSekarang,
+    status: status
+  };
 
-      db.ref('absensi').push(payload).then(() => {
-        showToast("Presensi Berhasil", `${siswa.nama} (${status}) - ${jamSekarang}`);
-        document.getElementById('scanResult').innerHTML = `
-          <div class="text-emerald-600 font-bold text-lg"><i class="fa-solid fa-circle-check"></i> ${siswa.nama}</div>
-          <p class="text-xs text-slate-600">Kelas: ${siswa.kelas} | Status: <span class="font-bold">${status}</span> (${jamSekarang} WIB)</p>
-        `;
+  db.ref('absensi').push(payload).then(() => {
+    showToast("Presensi Berhasil", `${siswa.nama} (${status}) - ${jamSekarang}`);
+    document.getElementById('scanResult').innerHTML = `
+      <div class="text-emerald-600 font-bold text-lg"><i class="fa-solid fa-circle-check"></i> ${siswa.nama}</div>
+      <p class="text-xs text-slate-600">Kelas: ${siswa.kelas} | Status: <span class="font-bold">${status}</span> (${jamSekarang} WIB)</p>
+    `;
 
-        kirimNotifWaFonnte(siswa.nama, siswa.kelas, status, jamSekarang);
-      });
-    }
+    kirimNotifWaFonnte(siswa.nama, siswa.kelas, status, jamSekarang);
+  });
+}
 
     function populateSelectSiswaManual() {
       const select = document.getElementById('selectSiswaManual');
@@ -828,7 +829,57 @@
         kirimNotifWaFonnte(siswa.nama, siswa.kelas, statusSet, jamSekarang);
       });
     }
+    // ===== Laporan Rekap =====
+    function exportRekapExcelFormat() {
+  const mode = document.getElementById('modeTampilan').value;
+  const kelasFilter = document.getElementById('filterKelas').value;
+  const periode = document.getElementById('filterPeriode').value;
 
+  let filtered = dbAbsensi.filter(a => kelasFilter === 'semua' || String(a.kelas) === String(kelasFilter));
+
+  if (filtered.length === 0) {
+    showToast("Data Kosong", "Tidak ada data laporan untuk di-export.", false);
+    return;
+  }
+
+  let dataToExport = [];
+
+  if (mode === 'log') {
+    dataToExport = filtered.map(a => ({
+      "Tanggal": a.tanggal,
+      "Waktu": a.waktu,
+      "NIS": a.nis,
+      "Nama Siswa": a.nama,
+      "Kelas": a.kelas,
+      "Status": a.status
+    }));
+  } else {
+    let targetSiswa = dbSiswa.filter(s => kelasFilter === 'semua' || String(s.kelas) === String(kelasFilter));
+    dataToExport = targetSiswa.map(s => {
+      const logs = dbAbsensi.filter(a => String(a.nis) === String(s.nis));
+      const h = logs.filter(a => a.status === 'Hadir').length;
+      const t = logs.filter(a => a.status === 'Terlambat').length;
+      const i = logs.filter(a => a.status === 'Izin').length;
+      const sak = logs.filter(a => a.status === 'Sakit').length;
+      return {
+        "NIS": s.nis,
+        "Nama Siswa": s.nama,
+        "Kelas": s.kelas,
+        "Hadir (H)": h,
+        "Terlambat (T)": t,
+        "Izin (I)": i,
+        "Sakit (S)": sak,
+        "Total Presensi": h + t + i + sak
+      };
+    });
+  }
+
+  const ws = XLSX.utils.json_to_sheet(dataToExport);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Laporan Absensi");
+  XLSX.writeFile(wb, `Laporan_Absensi_${mode}_${getTodayFormatted()}.xlsx`);
+  showToast("Export Berhasil", "File Excel telah berhasil diunduh.");
+}
     // ===== 7. DATA SISWA MANAGER =====
     function renderTableSiswa() {
       const tbody = document.getElementById('tableSiswaBody');
