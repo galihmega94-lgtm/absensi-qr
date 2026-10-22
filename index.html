@@ -539,6 +539,56 @@ function importSiswaFromExcel(event) {
 
   reader.readAsArrayBuffer(file);
 }
+  // ===== FUNGSI CETAK KARTU ABSENSI SISWA =====
+function printAllQrCards() {
+  const container = document.getElementById('printCardsContainer');
+  const printSection = document.getElementById('printSection');
+  
+  if (dbSiswa.length === 0) {
+    showToast("Data Kosong", "Tidak ada data siswa untuk dicetak.", false);
+    return;
+  }
+
+  // Set Judul Header Cetak
+  document.getElementById('printSchoolTitle').innerText = `KARTU ABSENSI SISWA - ${dbProfil.nama || 'SDN GAMBIRONO 03'}`;
+  document.getElementById('printSchoolSub').innerText = dbProfil.alamat || '';
+
+  container.innerHTML = '';
+
+  // Buat Kartu untuk Setiap Siswa
+  dbSiswa.forEach((siswa, index) => {
+    const cardId = `qrCardPrint_${index}`;
+    container.innerHTML += `
+      <div class="border-2 border-indigo-900 rounded-xl p-4 bg-white flex items-center justify-between shadow-sm page-break-inside-avoid">
+        <div class="space-y-1">
+          <h4 class="font-bold text-sm text-indigo-900">${siswa.nama}</h4>
+          <p class="text-xs text-slate-600">NIS: <span class="font-semibold">${siswa.nis}</span></p>
+          <p class="text-xs text-slate-600">Kelas: <span class="font-semibold">${siswa.kelas}</span></p>
+          <p class="text-[10px] text-slate-400 mt-2">${dbProfil.nama || 'SDN GAMBIRONO 03'}</p>
+        </div>
+        <div id="${cardId}" class="p-1 bg-white border rounded"></div>
+      </div>
+    `;
+  });
+
+  // Render QR Code di setiap kartu
+  setTimeout(() => {
+    dbSiswa.forEach((siswa, index) => {
+      const cardEl = document.getElementById(`qrCardPrint_${index}`);
+      if (cardEl) {
+        cardEl.innerHTML = '';
+        new QRCode(cardEl, {
+          text: String(siswa.nis),
+          width: 80,
+          height: 80
+        });
+      }
+    });
+
+    // Jalankan perintah cetak browser
+    window.print();
+  }, 300);
+}
     // ===== FUNGSI DOWNLOAD TEMPLATE EXCEL SISWA =====
 function downloadTemplateExcel() {
   // 1. Buat contoh data format template
