@@ -15,12 +15,31 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
   <style>
-    @media print {
-      body * { visibility: hidden; }
-      #printSection, #printSection * { visibility: visible; }
-      #printSection { position: absolute; left: 0; top: 0; width: 100%; }
+  @media print {
+    /* Sembunyikan seluruh elemen utama aplikasi */
+    body > *:not(#printSection) {
+      display: none !important;
     }
-  </style>
+    
+    /* Tampilkan hanya area cetak kartu */
+    #printSection {
+      display: block !important;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      background: white;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* Pengaturan tata letak kartu saat dicetak */
+    .page-break-inside-avoid {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+  }
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans relative">
 
