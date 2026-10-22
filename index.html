@@ -473,6 +473,72 @@
   </div>
 
   <script>
+    // ===== FUNGSI IMPORT DATA SISWA DARI EXCEL =====
+function importSiswaFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      
+      // Ambil sheet pertama
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      
+      // Konversi sheet ke format JSON
+      const jsonSiswa = XLSX.utils.sheet_to_json(worksheet);
+
+      if (jsonSiswa.length === 0) {
+        showToast("Import Gagal", "File Excel kosong atau format tidak sesuai.", false);
+        return;
+      }
+
+      let countSuccess = 0;
+      const promises = [];
+
+      jsonSiswa.forEach(row => {
+        // Mendukung variasi penulisan kolom header pada Excel (bebas kapital/kecil)
+        const nis = row.NIS || row.nis || row['NIS / ID'] || '';
+        const nama = row.Nama || row.NAMA || row.nama || row['Nama Siswa'] || '';
+        const kelas = row.Kelas || row.KELAS || row.kelas || '';
+        const jk = row.JK || row.jk || row['Jenis Kelamin'] || 'L';
+
+        // Hanya simpan jika NIS dan Nama terisi
+        if (nis && nama) {
+          const payload = {
+            nis: String(nis).trim(),
+            nama: String(nama).trim(),
+            kelas: String(kelas).trim(),
+            jk: String(jk).trim().toUpperCase()
+          };
+
+          // Simpan langsung ke Firebase Realtime Database
+          promises.push(db.ref('siswa').push(payload));
+          countSuccess++;
+        }
+      });
+
+      Promise.all(promises).then(() => {
+        showToast("Import Berhasil", `${countSuccess} data siswa berhasil ditambahkan!`);
+        // Reset input file agar bisa digunakan kembali
+        event.target.value = '';
+      }).catch(err => {
+        console.error("Error import:", err);
+        showToast("Import Gagal", "Terjadi kesalahan saat menyimpan ke database.", false);
+      });
+
+    } catch (error) {
+      console.error(error);
+      showToast("Error File", "Gagal membaca file Excel. Pastikan format file sesuai.", false);
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
     // ===== FUNGSI DOWNLOAD TEMPLATE EXCEL SISWA =====
 function downloadTemplateExcel() {
   // 1. Buat contoh data format template
