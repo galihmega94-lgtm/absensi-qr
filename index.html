@@ -1147,100 +1147,139 @@ function downloadTemplateExcel() {
       document.getElementById('modalQr').classList.remove('flex');
     }
 
-    // ===== 8. LAPORAN & EXPORT EXCEL =====
-    function renderTableLaporan() {
-      const thead = document.getElementById('tableLaporanHead');
-      const tbody = document.getElementById('tableLaporanBody');
-      const mode = document.getElementById('modeTampilan').value;
-      const kelasFilter = document.getElementById('filterKelas').value;
+   
+ // ===== 8. RENDER TABEL LAPORAN DENGAN FILTER PERIODE & KELAS =====
+function renderTableLaporan() {
+  const thead = document.getElementById('tableLaporanHead');
+  const tbody = document.getElementById('tableLaporanBody');
+  const mode = document.getElementById('modeTampilan').value;
+  const kelasFilter = document.getElementById('filterKelas').value;
+  const periodeFilter = document.getElementById('filterPeriode').value;
 
-      let filteredAbsen = dbAbsensi.filter(a => kelasFilter === 'semua' || a.kelas === kelasFilter);
+  const todayStr = getTodayFormatted(); // Format: YYYY-MM-DD
+  const todayDate = new Date();
 
-      if (mode === 'log') {
-        thead.innerHTML = `
-          <tr>
-            <th class="p-3 border-b">Tanggal</th>
-            <th class="p-3 border-b">Waktu</th>
-            <th class="p-3 border-b">NIS</th>
-            <th class="p-3 border-b">Nama Siswa</th>
-            <th class="p-3 border-b">Kelas</th>
-            <th class="p-3 border-b">Status</th>
-            <th class="p-3 border-b text-center admin-only ${isAdmin ? '' : 'hidden'}">Aksi</th>
-          </tr>
-        `;
-        tbody.innerHTML = '';
-
-        if (filteredAbsen.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Belum ada data presensi.</td></tr>`;
-          return;
-        }
-
-        filteredAbsen.forEach(a => {
-          tbody.innerHTML += `
-            <tr class="border-b hover:bg-slate-50">
-              <td class="p-3">${a.tanggal}</td>
-              <td class="p-3">${a.waktu}</td>
-              <td class="p-3 font-semibold">${a.nis}</td>
-              <td class="p-3">${a.nama}</td>
-              <td class="p-3">${a.kelas}</td>
-              <td class="p-3 font-bold ${a.status === 'Hadir' ? 'text-emerald-600' : a.status === 'Terlambat' ? 'text-amber-600' : 'text-blue-600'}">${a.status}</td>
-              <td class="p-3 text-center admin-only ${isAdmin ? '' : 'hidden'}">
-                <button onclick="openModalEditAbsen('${a._key}', '${a.nama}', '${a.tanggal} ${a.waktu}', '${a.status}')" class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded text-xs font-semibold hover:bg-amber-200">
-                  <i class="fa-solid fa-pen-to-square me-1"></i> Edit
-                </button>
-                <button onclick="deleteAbsen('${a._key}')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-semibold hover:bg-red-200 ms-1">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </td>
-            </tr>
-          `;
-        });
-
-      } else if (mode === 'rekap') {
-        thead.innerHTML = `
-          <tr>
-            <th class="p-3 border-b">NIS</th>
-            <th class="p-3 border-b">Nama Siswa</th>
-            <th class="p-3 border-b">Kelas</th>
-            <th class="p-3 border-b text-center text-emerald-600">Hadir (H)</th>
-            <th class="p-3 border-b text-center text-amber-600">Terlambat (T)</th>
-            <th class="p-3 border-b text-center text-blue-600">Izin (I)</th>
-            <th class="p-3 border-b text-center text-purple-600">Sakit (S)</th>
-            <th class="p-3 border-b text-center font-bold">Total</th>
-          </tr>
-        `;
-        tbody.innerHTML = '';
-
-        let targetSiswa = dbSiswa.filter(s => kelasFilter === 'semua' || s.kelas === kelasFilter);
-
-        if (targetSiswa.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">Tidak ada data siswa.</td></tr>`;
-          return;
-        }
-
-        targetSiswa.forEach(s => {
-          const logsSiswa = dbAbsensi.filter(a => a.nis === s.nis);
-          const h = logsSiswa.filter(a => a.status === 'Hadir').length;
-          const t = logsSiswa.filter(a => a.status === 'Terlambat').length;
-          const i = logsSiswa.filter(a => a.status === 'Izin').length;
-          const sak = logsSiswa.filter(a => a.status === 'Sakit').length;
-          const total = h + t + i + sak;
-
-          tbody.innerHTML += `
-            <tr class="border-b hover:bg-slate-50">
-              <td class="p-3 font-semibold">${s.nis}</td>
-              <td class="p-3">${s.nama}</td>
-              <td class="p-3">${s.kelas}</td>
-              <td class="p-3 text-center font-bold text-emerald-600">${h}</td>
-              <td class="p-3 text-center font-bold text-amber-600">${t}</td>
-              <td class="p-3 text-center font-bold text-blue-600">${i}</td>
-              <td class="p-3 text-center font-bold text-purple-600">${sak}</td>
-              <td class="p-3 text-center font-extrabold">${total}</td>
-            </tr>
-          `;
-        });
+  // 1. Filter Berdasarkan Kelas & Periode Waktu
+  let filteredAbsen = dbAbsensi.filter(a => {
+    // Filter Kelas
+    const matchKelas = kelasFilter === 'semua' || String(a.kelas) === String(kelasFilter);
+    
+    // Filter Periode Tanggal
+    let matchPeriode = true;
+    if (a.tanggal) {
+      const itemDate = new Date(a.tanggal);
+      
+      if (periodeFilter === 'hari') {
+        matchPeriode = (a.tanggal === todayStr);
+      } else if (periodeFilter === 'minggu') {
+        const diffTime = Math.abs(todayDate - itemDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        matchPeriode = (diffDays <= 7);
+      } else if (periodeFilter === 'bulan') {
+        const diffTime = Math.abs(todayDate - itemDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        matchPeriode = (diffDays <= 30);
+      } else if (periodeFilter === 'semester') {
+        const diffTime = Math.abs(todayDate - itemDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        matchPeriode = (diffDays <= 180);
       }
     }
+
+    return matchKelas && matchPeriode;
+  });
+
+  // 2. Render Tampilan Log Scan (Detail)
+  if (mode === 'log') {
+    thead.innerHTML = `
+      <tr>
+        <th class="p-3 border-b">Tanggal</th>
+        <th class="p-3 border-b">Waktu</th>
+        <th class="p-3 border-b">NIS</th>
+        <th class="p-3 border-b">Nama Siswa</th>
+        <th class="p-3 border-b">Kelas</th>
+        <th class="p-3 border-b">Status</th>
+        <th class="p-3 border-b text-center admin-only ${isAdmin ? '' : 'hidden'}">Aksi</th>
+      </tr>
+    `;
+    tbody.innerHTML = '';
+
+    if (filteredAbsen.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Tidak ada log presensi untuk periode ini.</td></tr>`;
+      return;
+    }
+
+    // Urutkan dari data terbaru
+    filteredAbsen.sort((a, b) => new Date(b.tanggal + ' ' + b.waktu) - new Date(a.tanggal + ' ' + a.waktu));
+
+    filteredAbsen.forEach(a => {
+      tbody.innerHTML += `
+        <tr class="border-b hover:bg-slate-50">
+          <td class="p-3">${a.tanggal}</td>
+          <td class="p-3">${a.waktu}</td>
+          <td class="p-3 font-semibold">${a.nis}</td>
+          <td class="p-3">${a.nama}</td>
+          <td class="p-3">${a.kelas}</td>
+          <td class="p-3 font-bold ${a.status === 'Hadir' ? 'text-emerald-600' : a.status === 'Terlambat' ? 'text-amber-600' : 'text-blue-600'}">${a.status}</td>
+          <td class="p-3 text-center admin-only ${isAdmin ? '' : 'hidden'}">
+            <button onclick="openModalEditAbsen('${a._key}', '${a.nama}', '${a.tanggal} ${a.waktu}', '${a.status}')" class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded text-xs font-semibold hover:bg-amber-200">
+              <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+            </button>
+            <button onclick="deleteAbsen('${a._key}')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-semibold hover:bg-red-200 ms-1">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+  // 3. Render Tampilan Akumulasi Rekap (H/I/S/T)
+  } else if (mode === 'rekap') {
+    thead.innerHTML = `
+      <tr>
+        <th class="p-3 border-b">NIS</th>
+        <th class="p-3 border-b">Nama Siswa</th>
+        <th class="p-3 border-b">Kelas</th>
+        <th class="p-3 border-b text-center text-emerald-600">Hadir (H)</th>
+        <th class="p-3 border-b text-center text-amber-600">Terlambat (T)</th>
+        <th class="p-3 border-b text-center text-blue-600">Izin (I)</th>
+        <th class="p-3 border-b text-center text-purple-600">Sakit (S)</th>
+        <th class="p-3 border-b text-center font-bold">Total</th>
+      </tr>
+    `;
+    tbody.innerHTML = '';
+
+    let targetSiswa = dbSiswa.filter(s => kelasFilter === 'semua' || String(s.kelas) === String(kelasFilter));
+
+    if (targetSiswa.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">Tidak ada data siswa.</td></tr>`;
+      return;
+    }
+
+    targetSiswa.forEach(s => {
+      // Hitung hanya dari data absensi yang sudah difilter berdasarkan periode
+      const logsSiswa = filteredAbsen.filter(a => String(a.nis) === String(s.nis));
+      const h = logsSiswa.filter(a => a.status === 'Hadir').length;
+      const t = logsSiswa.filter(a => a.status === 'Terlambat').length;
+      const i = logsSiswa.filter(a => a.status === 'Izin').length;
+      const sak = logsSiswa.filter(a => a.status === 'Sakit').length;
+      const total = h + t + i + sak;
+
+      tbody.innerHTML += `
+        <tr class="border-b hover:bg-slate-50">
+          <td class="p-3 font-semibold">${s.nis}</td>
+          <td class="p-3">${s.nama}</td>
+          <td class="p-3">${s.kelas}</td>
+          <td class="p-3 text-center font-bold text-emerald-600">${h}</td>
+          <td class="p-3 text-center font-bold text-amber-600">${t}</td>
+          <td class="p-3 text-center font-bold text-blue-600">${i}</td>
+          <td class="p-3 text-center font-bold text-purple-600">${sak}</td>
+          <td class="p-3 text-center font-extrabold">${total}</td>
+        </tr>
+      `;
+    });
+  }
+}
 
     function openModalEditAbsen(key, nama, waktu, status) {
       document.getElementById('editAbsenKey').value = key;
