@@ -1170,7 +1170,7 @@
       }, 500);
     }
 
-    // ===== 9. RENDER TABEL LAPORAN (PERIODE, ALPHA, EDIT MANUAL) =====
+    // ===== 9. RENDER TABEL LAPORAN (PERIODE, ALPHA, EDIT MANUAL, SEMAKAN HARI LIBUR) =====
     function renderTableLaporan() {
       const thead = document.getElementById('tableLaporanHead');
       const tbody = document.getElementById('tableLaporanBody');
@@ -1270,7 +1270,19 @@
           return;
         }
 
-        const totalHariEfektif = [...new Set(filteredAbsen.map(a => a.tanggal))].length || 1;
+        // Hitung total hari efektif (tarikh unik)
+        const tanggalUnik = [...new Set(filteredAbsen.map(a => a.tanggal))];
+        let totalHariEfektif = tanggalUnik.length;
+
+        // Semakan khusus untuk filter "Hari Ini": jika hari Ahad atau tarikh merah, set totalHariEfektif = 0
+        if (periodeFilter === 'hari') {
+          const isHariMinggu = todayDate.getDay() === 0;
+          const isTanggalMerah = dbLibur.some(l => l.tanggal === todayStr);
+          
+          if (isHariMinggu || isTanggalMerah) {
+            totalHariEfektif = 0;
+          }
+        }
 
         targetSiswa.forEach(s => {
           const logsSiswa = filteredAbsen.filter(a => String(a.nis) === String(s.nis));
@@ -1417,7 +1429,13 @@
         }));
       } else {
         let targetSiswa = dbSiswa.filter(s => kelasFilter === 'semua' || String(s.kelas) === String(kelasFilter));
-        const totalHariEfektif = [...new Set(filtered.map(a => a.tanggal))].length || 1;
+        
+        let totalHariEfektif = [...new Set(filtered.map(a => a.tanggal))].length;
+        if (periodeFilter === 'hari') {
+          const isHariMinggu = todayDate.getDay() === 0;
+          const isTanggalMerah = dbLibur.some(l => l.tanggal === todayStr);
+          if (isHariMinggu || isTanggalMerah) totalHariEfektif = 0;
+        }
 
         dataToExport = targetSiswa.map(s => {
           const logs = filtered.filter(a => String(a.nis) === String(s.nis));
