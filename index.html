@@ -1246,78 +1246,64 @@
           `;
         });
 
-     // Mode 2: Akumulasi Rekap (H/T/I/S/A)
-  } else if (mode === 'rekap') {
-    thead.innerHTML = `
-      <tr>
-        <th class="p-3 border-b">NIS</th>
-        <th class="p-3 border-b">Nama Siswa</th>
-        <th class="p-3 border-b">Kelas</th>
-        <th class="p-3 border-b text-center text-emerald-600">Hadir (H)</th>
-        <th class="p-3 border-b text-center text-amber-600">Terlambat (T)</th>
-        <th class="p-3 border-b text-center text-blue-600">Izin (I)</th>
-        <th class="p-3 border-b text-center text-purple-600">Sakit (S)</th>
-        <th class="p-3 border-b text-center text-red-600">Alpha (A)</th>
-        <th class="p-3 border-b text-center admin-only ${isAdmin ? '' : 'hidden'}">Input Status</th>
-      </tr>
-    `;
-    tbody.innerHTML = '';
+      // Mode 2: Akumulasi Rekap (H/T/I/S/A)
+      } else if (mode === 'rekap') {
+        thead.innerHTML = `
+          <tr>
+            <th class="p-3 border-b">NIS</th>
+            <th class="p-3 border-b">Nama Siswa</th>
+            <th class="p-3 border-b">Kelas</th>
+            <th class="p-3 border-b text-center text-emerald-600">Hadir (H)</th>
+            <th class="p-3 border-b text-center text-amber-600">Terlambat (T)</th>
+            <th class="p-3 border-b text-center text-blue-600">Izin (I)</th>
+            <th class="p-3 border-b text-center text-purple-600">Sakit (S)</th>
+            <th class="p-3 border-b text-center text-red-600">Alpha (A)</th>
+            <th class="p-3 border-b text-center admin-only ${isAdmin ? '' : 'hidden'}">Input Status</th>
+          </tr>
+        `;
+        tbody.innerHTML = '';
 
-    let targetSiswa = dbSiswa.filter(s => kelasFilter === 'semua' || String(s.kelas) === String(kelasFilter));
+        let targetSiswa = dbSiswa.filter(s => kelasFilter === 'semua' || String(s.kelas) === String(kelasFilter));
 
-    if (targetSiswa.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">Tidak ada data siswa.</td></tr>`;
-      return;
-    }
+        if (targetSiswa.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">Tidak ada data siswa.</td></tr>`;
+          return;
+        }
 
-    // Hitung total hari efektif dengan mengabaikan hari libur & hari Minggu
-    const tanggalUnik = [...new Set(filteredAbsen.map(a => a.tanggal))];
-    let totalHariEfektif = tanggalUnik.length;
+        const totalHariEfektif = [...new Set(filteredAbsen.map(a => a.tanggal))].length || 1;
 
-    // Khusus filter "Hari Ini", cek jika hari ini adalah Minggu atau Tanggal Merah
-    if (periodeFilter === 'hari') {
-      const isHariMinggu = todayDate.getDay() === 0;
-      const isTanggalMerah = dbLibur.some(l => l.tanggal === todayStr);
-      
-      if (isHariMinggu || isTanggalMerah) {
-        totalHariEfektif = 0; // Jika hari libur, total hari efektif 0
+        targetSiswa.forEach(s => {
+          const logsSiswa = filteredAbsen.filter(a => String(a.nis) === String(s.nis));
+          const h = logsSiswa.filter(a => a.status === 'Hadir').length;
+          const t = logsSiswa.filter(a => a.status === 'Terlambat').length;
+          const i = logsSiswa.filter(a => a.status === 'Izin').length;
+          const sak = logsSiswa.filter(a => a.status === 'Sakit').length;
+          
+          let alphaManual = logsSiswa.filter(a => a.status === 'Alpha' || a.status === 'Tanpa Keterangan').length;
+          const presensiSiswa = h + t + i + sak + alphaManual;
+          const alphaOtomatis = Math.max(0, totalHariEfektif - presensiSiswa);
+          const totalAlpha = alphaManual + alphaOtomatis;
+
+          tbody.innerHTML += `
+            <tr class="border-b hover:bg-slate-50">
+              <td class="p-3 font-semibold">${s.nis}</td>
+              <td class="p-3">${s.nama}</td>
+              <td class="p-3">${s.kelas}</td>
+              <td class="p-3 text-center font-bold text-emerald-600">${h}</td>
+              <td class="p-3 text-center font-bold text-amber-600">${t}</td>
+              <td class="p-3 text-center font-bold text-blue-600">${i}</td>
+              <td class="p-3 text-center font-bold text-purple-600">${sak}</td>
+              <td class="p-3 text-center font-bold text-red-600">${totalAlpha}</td>
+              <td class="p-3 text-center admin-only ${isAdmin ? '' : 'hidden'}">
+                <button onclick="openModalInputManualFromRekap('${s.nis}', '${s.nama}', '${s.kelas}')" class="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded text-xs font-semibold hover:bg-indigo-200">
+                  <i class="fa-solid fa-plus-circle me-1"></i> Input Absen
+                </button>
+              </td>
+            </tr>
+          `;
+        });
       }
     }
-
-    targetSiswa.forEach(s => {
-      const logsSiswa = filteredAbsen.filter(a => String(a.nis) === String(s.nis));
-      const h = logsSiswa.filter(a => a.status === 'Hadir').length;
-      const t = logsSiswa.filter(a => a.status === 'Terlambat').length;
-      const i = logsSiswa.filter(a => a.status === 'Izin').length;
-      const sak = logsSiswa.filter(a => a.status === 'Sakit').length;
-      
-      let alphaManual = logsSiswa.filter(a => a.status === 'Alpha' || a.status === 'Tanpa Keterangan').length;
-      const presensiSiswa = h + t + i + sak + alphaManual;
-      
-      // Kalkulasi Alpha otomatis
-      const alphaOtomatis = Math.max(0, totalHariEfektif - presensiSiswa);
-      const totalAlpha = alphaManual + alphaOtomatis;
-
-      tbody.innerHTML += `
-        <tr class="border-b hover:bg-slate-50">
-          <td class="p-3 font-semibold">${s.nis}</td>
-          <td class="p-3">${s.nama}</td>
-          <td class="p-3">${s.kelas}</td>
-          <td class="p-3 text-center font-bold text-emerald-600">${h}</td>
-          <td class="p-3 text-center font-bold text-amber-600">${t}</td>
-          <td class="p-3 text-center font-bold text-blue-600">${i}</td>
-          <td class="p-3 text-center font-bold text-purple-600">${sak}</td>
-          <td class="p-3 text-center font-bold text-red-600">${totalAlpha}</td>
-          <td class="p-3 text-center admin-only ${isAdmin ? '' : 'hidden'}">
-            <button onclick="openModalInputManualFromRekap('${s.nis}', '${s.nama}', '${s.kelas}')" class="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded text-xs font-semibold hover:bg-indigo-200">
-              <i class="fa-solid fa-plus-circle me-1"></i> Input Absen
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-  }
- 
 
     function filterLaporan() {
       renderTableLaporan();
