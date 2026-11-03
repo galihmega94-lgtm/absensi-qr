@@ -153,20 +153,23 @@
 
               <!-- Input Manual -->
               <div class="border-t pt-4">
-                <h4 class="font-semibold text-sm mb-2 text-indigo-900"><i class="fa-solid fa-user-pen me-1"></i> Input Presensi Manual (Izin/Sakit/Alpha)</h4>
+                <h4 class="font-semibold text-sm mb-2 text-indigo-900"><i class="fa-solid fa-user-pen me-1"></i> Input Presensi Manual (Izin/Sakit/Alpha/Pulang)</h4>
                 <div class="space-y-2">
                   <select id="selectSiswaManual" class="w-full border rounded-lg p-2 text-xs sm:text-sm">
                     <option value="">-- Pilih Siswa --</option>
                   </select>
-                  <div class="flex space-x-2">
-                    <button onclick="inputAbsenManual('Izin')" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 text-xs sm:text-sm font-semibold">
-                      <i class="fa-solid fa-envelope me-1"></i> Set Izin
+                  <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <button onclick="inputAbsenManual('Izin')" class="bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 text-xs font-semibold">
+                      <i class="fa-solid fa-envelope me-1"></i> Izin
                     </button>
-                    <button onclick="inputAbsenManual('Sakit')" class="flex-1 bg-amber-600 text-white py-2 rounded-lg hover:bg-amber-700 text-xs sm:text-sm font-semibold">
-                      <i class="fa-solid fa-notes-medical me-1"></i> Set Sakit
+                    <button onclick="inputAbsenManual('Sakit')" class="bg-amber-600 text-white py-2 rounded-lg hover:bg-amber-700 text-xs font-semibold">
+                      <i class="fa-solid fa-notes-medical me-1"></i> Sakit
                     </button>
-                    <button onclick="inputAbsenManual('Alpha')" class="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 text-xs sm:text-sm font-semibold">
-                      <i class="fa-solid fa-user-xmark me-1"></i> Set Alpha
+                    <button onclick="inputAbsenManual('Alpha')" class="bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 text-xs font-semibold">
+                      <i class="fa-solid fa-user-xmark me-1"></i> Alpha
+                    </button>
+                    <button onclick="inputAbsenManual('Pulang')" class="bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 text-xs font-semibold">
+                      <i class="fa-solid fa-person-walking-arrow-right me-1"></i> Pulang
                     </button>
                   </div>
                 </div>
@@ -446,6 +449,7 @@
             <select id="editAbsenStatus" class="w-full border rounded-lg p-2 font-semibold">
               <option value="Hadir">Hadir</option>
               <option value="Terlambat">Terlambat</option>
+              <option value="Pulang">Pulang</option>
               <option value="Izin">Izin</option>
               <option value="Sakit">Sakit</option>
               <option value="Alpha">Alpha</option>
@@ -771,7 +775,7 @@
       renderTableLaporan();
     }
 
-    // ===== 7. SCANNER QR & LOGIC ABSENSI =====
+    // ===== 7. SCANNER QR & LOGIC ABSENSI (MASUK & PULANG) =====
     function startScanner() {
       if (!html5QrcodeScanner) {
         html5QrcodeScanner = new Html5Qrcode("reader");
@@ -809,16 +813,31 @@
         return;
       }
 
-      // Pengecekan Absen Ganda (Cek NIS dan Tanggal Hari Ini)
-      const rekapHariIni = dbAbsensi.find(a => String(a.nis) === String(siswa.nis) && a.tanggal === today);
-      if (rekapHariIni) {
-        showToast("Sudah Absen", `${siswa.nama} sudah presensi hari ini! (${rekapHariIni.waktu} WIB)`, false);
-        return;
-      }
+      // Ambil seluruh log absensi siswa hari ini
+      const logsHariIni = dbAbsensi.filter(a => String(a.nis) === String(siswa.nis) && a.tanggal === today);
+      const isWaktuPulang = (dbJadwal.pulang && jamSekarang >= dbJadwal.pulang);
 
       let status = "Hadir";
-      if (jamSekarang > dbJadwal.batas) {
-        status = "Terlambat";
+
+      if (isWaktuPulang) {
+        // Pengecekan Absen Pulang
+        const sudahAbsenPulang = logsHariIni.some(a => a.status === 'Pulang');
+        if (sudahAbsenPulang) {
+          showToast("Sudah Absen Pulang", `${siswa.nama} sudah presensi pulang hari ini!`, false);
+          return;
+        }
+        status = "Pulang";
+      } else {
+        // Pengecekan Absen Masuk
+        const sudahAbsenMasuk = logsHariIni.some(a => a.status === 'Hadir' || a.status === 'Terlambat' || a.status === 'Izin' || a.status === 'Sakit' || a.status === 'Alpha');
+        if (sudahAbsenMasuk) {
+          showToast("Sudah Absen Masuk", `${siswa.nama} sudah presensi masuk hari ini!`, false);
+          return;
+        }
+
+        if (jamSekarang > dbJadwal.batas) {
+          status = "Terlambat";
+        }
       }
 
       const payload = {
@@ -831,10 +850,10 @@
       };
 
       db.ref('absensi').push(payload).then(() => {
-        showToast("Presensi Berhasil", `${siswa.nama} (${status}) - ${jamSekarang}`);
+        showToast(`Presensi ${status}`, `${siswa.nama} (${status}) - ${jamSekarang}`);
         document.getElementById('scanResult').innerHTML = `
           <div class="text-emerald-600 font-bold text-lg"><i class="fa-solid fa-circle-check"></i> ${siswa.nama}</div>
-          <p class="text-xs text-slate-600">Kelas: ${siswa.kelas} | Status: <span class="font-bold">${status}</span> (${jamSekarang} WIB)</p>
+          <p class="text-xs text-slate-600">Kelas: ${siswa.kelas} | Status: <span class="font-bold text-indigo-700">${status}</span> (${jamSekarang} WIB)</p>
         `;
 
         kirimNotifWaFonnte(siswa.nama, siswa.kelas, status, jamSekarang);
@@ -862,19 +881,28 @@
       const now = new Date();
       const jamSekarang = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
 
-      // Cek jika siswa sudah pernah absen hari ini
-      const rekapHariIni = dbAbsensi.find(a => String(a.nis) === String(siswa.nis) && a.tanggal === today);
-      if (rekapHariIni) {
-        if (confirm(`${siswa.nama} sudah memiliki catatan absensi hari ini (${rekapHariIni.status}). Timpa dengan status ${statusSet}?`)) {
-          db.ref(`absensi/${rekapHariIni._key}`).update({
-            status: statusSet,
-            waktu: jamSekarang
-          }).then(() => {
-            showToast("Status Diperbarui", `${siswa.nama} di-set ${statusSet}`);
-            kirimNotifWaFonnte(siswa.nama, siswa.kelas, statusSet, jamSekarang);
-          });
+      const logsHariIni = dbAbsensi.filter(a => String(a.nis) === String(siswa.nis) && a.tanggal === today);
+
+      if (statusSet === 'Pulang') {
+        const sudahPulang = logsHariIni.some(a => a.status === 'Pulang');
+        if (sudahPulang) {
+          showToast("Sudah Pulang", `${siswa.nama} sudah memiliki catatan absen pulang hari ini!`, false);
+          return;
         }
-        return;
+      } else {
+        const rekapMasuk = logsHariIni.find(a => a.status !== 'Pulang');
+        if (rekapMasuk) {
+          if (confirm(`${siswa.nama} sudah memiliki catatan absensi masuk hari ini (${rekapMasuk.status}). Timpa dengan status ${statusSet}?`)) {
+            db.ref(`absensi/${rekapMasuk._key}`).update({
+              status: statusSet,
+              waktu: jamSekarang
+            }).then(() => {
+              showToast("Status Diperbarui", `${siswa.nama} di-set ${statusSet}`);
+              kirimNotifWaFonnte(siswa.nama, siswa.kelas, statusSet, jamSekarang);
+            });
+          }
+          return;
+        }
       }
 
       const payload = {
@@ -1246,7 +1274,7 @@
               <td class="p-3 font-semibold">${a.nis}</td>
               <td class="p-3">${a.nama}</td>
               <td class="p-3">${a.kelas}</td>
-              <td class="p-3 font-bold ${a.status === 'Hadir' ? 'text-emerald-600' : a.status === 'Terlambat' ? 'text-amber-600' : a.status === 'Alpha' ? 'text-red-600' : 'text-blue-600'}">${a.status}</td>
+              <td class="p-3 font-bold ${a.status === 'Hadir' ? 'text-emerald-600' : a.status === 'Terlambat' ? 'text-amber-600' : a.status === 'Pulang' ? 'text-purple-600' : a.status === 'Alpha' ? 'text-red-600' : 'text-blue-600'}">${a.status}</td>
               <td class="p-3 text-center admin-only ${isAdmin ? '' : 'hidden'}">
                 <button onclick="openModalEditAbsen('${a._key}', '${a.nama}', '${a.tanggal}', '${a.status}')" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-semibold hover:bg-amber-200">
                   <i class="fa-solid fa-pen-to-square me-1"></i> Edit
@@ -1259,7 +1287,7 @@
           `;
         });
 
-      // Mode 2: Akumulasi Rekap (H/T/I/S/A)
+      // Mode 2: Akumulasi Rekap (H/T/I/S/A) - HANYA MEMPERHITUNGKAN MASUK
       } else if (mode === 'rekap') {
         thead.innerHTML = `
           <tr>
@@ -1283,11 +1311,12 @@
           return;
         }
 
-        // Hitung total hari efektif (tarikh unik)
-        const tanggalUnik = [...new Set(filteredAbsen.map(a => a.tanggal))];
+        // Hanya menyaring hari efektif dari presensi masuk (bukan hanya log 'Pulang')
+        const logMasuk = filteredAbsen.filter(a => a.status !== 'Pulang');
+        const tanggalUnik = [...new Set(logMasuk.map(a => a.tanggal))];
         let totalHariEfektif = tanggalUnik.length;
 
-        // Semakan khusus untuk filter "Hari Ini": jika hari Ahad atau tarikh merah, set totalHariEfektif = 0
+        // Pengecekan khusus untuk filter "Hari Ini"
         if (periodeFilter === 'hari') {
           const isHariMinggu = todayDate.getDay() === 0;
           const isTanggalMerah = dbLibur.some(l => l.tanggal === todayStr);
@@ -1305,8 +1334,8 @@
           const sak = logsSiswa.filter(a => a.status === 'Sakit').length;
           
           let alphaManual = logsSiswa.filter(a => a.status === 'Alpha' || a.status === 'Tanpa Keterangan').length;
-          const presensiSiswa = h + t + i + sak + alphaManual;
-          const alphaOtomatis = Math.max(0, totalHariEfektif - presensiSiswa);
+          const presensiMasukSiswa = h + t + i + sak + alphaManual;
+          const alphaOtomatis = Math.max(0, totalHariEfektif - presensiMasukSiswa);
           const totalAlpha = alphaManual + alphaOtomatis;
 
           tbody.innerHTML += `
@@ -1443,7 +1472,9 @@
       } else {
         let targetSiswa = dbSiswa.filter(s => kelasFilter === 'semua' || String(s.kelas) === String(kelasFilter));
         
-        let totalHariEfektif = [...new Set(filtered.map(a => a.tanggal))].length;
+        const logMasuk = filtered.filter(a => a.status !== 'Pulang');
+        let totalHariEfektif = [...new Set(logMasuk.map(a => a.tanggal))].length;
+
         if (periodeFilter === 'hari') {
           const isHariMinggu = todayDate.getDay() === 0;
           const isTanggalMerah = dbLibur.some(l => l.tanggal === todayStr);
@@ -1469,7 +1500,7 @@
             "Izin (I)": i,
             "Sakit (S)": sak,
             "Alpha (A)": totalAlpha,
-            "Total Presensi": h + t + i + sak + totalAlpha
+            "Total Presensi Masuk": h + t + i + sak + totalAlpha
           };
         });
       }
