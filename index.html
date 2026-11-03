@@ -529,8 +529,9 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ===== 2. KONFIGURASI FONNTE WA =====
-    const FONNTE_GROUP_ID = "6281252213992-1626004596@g.us";
+    // ===== 2. KONFIGURASI FONNTE WA (TERPISAH KELAS 6 & KELAS 4B) =====
+    const FONNTE_GROUP_ID_KELAS_6 = "6281252213992-1626004596@g.us";
+    const FONNTE_GROUP_ID_KELAS_4B = "120363316196124429@g.us";
 
     let dbSiswa = [];
     let dbAbsensi = [];
@@ -617,14 +618,17 @@
       updateUIRole();
     });
 
-    // ===== 4. FONNTE NOTIFIKASI WA (KHUSUS KELAS 4B DAN KELAS 6) =====
+    // ===== 4. FONNTE NOTIFIKASI WA (MULTIGROUP KELAS 4B & KELAS 6) =====
     async function kirimNotifWaFonnte(nama, kelas, status, waktu) {
       const k = String(kelas).trim().toUpperCase();
       
-      // Cek apakah siswa merupakan Kelas 4B atau Kelas 6
-      const isTargetKelas = k.includes('4B') || k.startsWith('6');
-
-      if (!isTargetKelas) {
+      // Pilih ID grup berdasarkan kelas siswa
+      let targetGroup = "";
+      if (k.includes('4B')) {
+        targetGroup = FONNTE_GROUP_ID_KELAS_4B;
+      } else if (k.startsWith('6')) {
+        targetGroup = FONNTE_GROUP_ID_KELAS_6;
+      } else {
         console.log(`Notifikasi WA dilewati karena ${nama} bukan kelas 4B / Kelas 6 (Kelas: ${kelas})`);
         return;
       }
@@ -639,7 +643,7 @@
                     `Terima kasih.`;
 
       const formData = new URLSearchParams();
-      formData.append('target', FONNTE_GROUP_ID);
+      formData.append('target', targetGroup);
       formData.append('message', pesan);
 
       try {
