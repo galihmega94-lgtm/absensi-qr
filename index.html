@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <!-- TAG CEGAH GOOGLE MENGINDEKS DOMAIN -->
   <meta name="robots" content="noindex, nofollow">
+
   <title>Aplikasi Absensi Siswa QR Code - SDN GAMBIRONO 03</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -615,18 +617,21 @@
       updateUIRole();
     });
 
-    // ===== 4. FONNTE NOTIFIKASI WA (KHUSUS KELAS 6) =====
+    // ===== 4. FONNTE NOTIFIKASI WA (KHUSUS KELAS 4B DAN KELAS 6) =====
     async function kirimNotifWaFonnte(nama, kelas, status, waktu) {
-      const isKelas6 = String(kelas).trim().startsWith('6');
+      const k = String(kelas).trim().toUpperCase();
+      
+      // Cek apakah siswa merupakan Kelas 4B atau Kelas 6
+      const isTargetKelas = k.includes('4B') || k.startsWith('6');
 
-      if (!isKelas6) {
-        console.log(`Notifikasi WA dilewati karena ${nama} bukan kelas 6 (Kelas: ${kelas})`);
+      if (!isTargetKelas) {
+        console.log(`Notifikasi WA dilewati karena ${nama} bukan kelas 4B / Kelas 6 (Kelas: ${kelas})`);
         return;
       }
 
       const token = "PXhX87sqV1TLqEKqNy66"; 
 
-      const pesan = `*NOTIFIKASI ABSENSI KELAS 6 SDN GAMBIRONO 03*\n\n` +
+      const pesan = `*NOTIFIKASI ABSENSI KELAS ${k} SDN GAMBIRONO 03*\n\n` +
                     `Nama: *${nama}*\n` +
                     `Kelas: *${kelas}*\n` +
                     `Status: *${status}*\n` +
@@ -650,7 +655,7 @@
           
           if (result.status) {
               console.log("WA Berhasil Terkirim:", result);
-              showToast("Notifikasi Terkirim", "Pesan WA kelas 6 berhasil dikirim ke grup.");
+              showToast("Notifikasi Terkirim", `Pesan WA kelas ${k} berhasil dikirim ke grup.`);
           } else {
               console.error("Gagal Kirim WA Fonnte:", result);
               showToast("Gagal Kirim WA", result.reason || "Terjadi kesalahan", false);
@@ -997,7 +1002,8 @@
       e.preventDefault();
       const nis = document.getElementById('siswaNis').value;
       const nama = document.getElementById('siswaNama').value;
-      const kelas = document.getElementById('siswaKelas').value;
+      let kelasRaw = String(document.getElementById('siswaKelas').value || '').trim();
+      const kelas = kelasRaw.replace(/^KELAS\s+/i, '');
       const jk = document.getElementById('siswaJk').value;
 
       db.ref('siswa').push({ nis, nama, kelas, jk }).then(() => {
@@ -1040,7 +1046,7 @@
 
     function downloadTemplateExcel() {
       const templateData = [
-        { "NIS": "12345", "Nama": "Contoh Nama Siswa", "Kelas": "6", "JK": "L" },
+        { "NIS": "12345", "Nama": "Contoh Nama Siswa", "Kelas": "4B", "JK": "L" },
         { "NIS": "12346", "Nama": "Contoh Nama Siswa Perempuan", "Kelas": "6", "JK": "P" }
       ];
 
@@ -1076,7 +1082,8 @@
           jsonSiswa.forEach(row => {
             const nis = row.NIS || row.nis || row['NIS / ID'] || '';
             const nama = row.Nama || row.NAMA || row.nama || row['Nama Siswa'] || '';
-            const kelas = row.Kelas || row.KELAS || row.kelas || '';
+            let kelasRaw = String(row.Kelas || row.KELAS || row.kelas || '').trim();
+            const kelas = kelasRaw.replace(/^KELAS\s+/i, '');
             const jk = row.JK || row.jk || row['Jenis Kelamin'] || 'L';
 
             if (nis && nama) {
